@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Vector Hole – pochłoń neonowe miasto | darmowa gra .io online</title>
+<meta name="description" content="Steruj czarną dziurą i pochłaniaj neonowe miasto: ulice, auta, wieżowce i rywali. Rundy 2:00, 60 misji kampanii, wyzwanie dnia i pojedynki ze znajomymi na tej samej mapie. Za darmo, bez instalacji — na telefonie i komputerze.">
+<meta name="keywords" content="gra io, hole io, czarna dziura, gra w przeglądarce, darmowa gra, gra mobilna, gra online, neon, cyberpunk, gra bez instalacji">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#04101D">
+<meta name="color-scheme" content="dark">
+<meta name="application-name" content="Vector Hole">
+<meta name="apple-mobile-web-app-title" content="Vector Hole">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="format-detection" content="telephone=no">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Vector Hole">
+<meta property="og:locale" content="pl_PL">
+<meta property="og:title" content="Vector Hole — pochłoń neonowe miasto">
+<meta property="og:description" content="Czarna dziura kontra neonowe miasto. Rośnij, zjadaj rywali, pobij wynik znajomego na tej samej mapie. Za darmo w przeglądarce.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Vector Hole — pochłoń neonowe miasto">
+<meta name="twitter:description" content="Rośnij, zjadaj rywali i pobij wynik znajomego. Darmowa gra .io w przeglądarce.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2304101D'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%2350F0FA' stroke-width='5'/%3E%3Cpath d='M32 14a18 18 0 0 1 18 18' fill='none' stroke='%23FF54AD' stroke-width='5' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='12' fill='%23000'/%3E%3C/svg%3E">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"VideoGame","name":"Vector Hole: Eat the Neon City","alternateName":"Vector Hole","description":"Gra .io w przeglądarce: steruj czarną dziurą, pochłaniaj neonowe miasto, zjadaj mniejszych rywali. Rundy 2:00, 60 misji kampanii, wyzwanie dnia, pojedynki ze znajomymi.","genre":["Casual","Arcade","io game"],"gamePlatform":["Web browser","Android","iOS"],"applicationCategory":"Game","operatingSystem":"Any","inLanguage":"pl","playMode":"SinglePlayer","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"PLN"}}
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<noscript><p style="color:#e6faff;font-family:sans-serif;padding:24px">Vector Hole potrzebuje włączonej obsługi JavaScript.</p></noscript>
+
+<div id="app">
+
+  <!-- ===================== GAME CANVAS ===================== -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ===================== IN-GAME HUD ===================== -->
+  <div id="hud" class="hidden">
+    <button id="btnPause" class="hud-icon-btn" aria-label="Pauza">❚❚</button>
+
+    <div id="hud-topright" class="hud-panel hud-standings">
+      <button id="hud-rankBadge" class="standings-header" aria-label="Zwiń/rozwiń pełny ranking">
+        <span class="leaderboard-title"><svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4z"/></svg> NA ŻYWO</span>
+        <span id="rankValue" class="hud-value rank">#1/6</span>
+      </button>
+      <ol id="leaderboardList"></ol>
+    </div>
+
+    <!-- Shared in-round top strip (GDD §06 HUD zones: "Pod górą: Cel + pasek
+         wzrostu"), used by both Arena and Campaign -- Czas/pasek ładowania/
+         Wynik cluster beside the pause button. In Campaign, CEL RUNDY sits
+         in its own box on the right; in Arena that same corner shows the
+         standings panel above instead, since Arena rounds have no mission
+         goal (player feedback: the two modes' in-round HUD should look and
+         behave the same). -->
+    <div id="hud-tier-strip" class="hud-panel hud-tier-strip hidden">
+      <div class="hud-pill hud-pill-time">
+        <span class="hud-label">Czas</span>
+        <span class="hud-value timer"><svg class="hud-goal-footer-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2.2" fill="none"/></svg><span id="missionTimerValue">0:00</span></span>
+      </div>
+
+      <div class="hud-tier-bar">
+        <svg class="hud-tier-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor"/></svg>
+        <div class="tier-progress-track"><div id="missionTierBar" class="tier-progress-bar"></div></div>
+        <span class="hud-tier-badge" id="missionTierBadge">T1</span>
+      </div>
+
+      <div class="hud-pill hud-pill-score">
+        <span class="hud-label">Wynik</span>
+        <span class="hud-value score"><svg class="hud-goal-footer-icon" viewBox="0 0 24 24"><path d="M12 2l2.6 6.9L22 9l-5.6 4.6L18.2 21 12 16.8 5.8 21l1.8-7.4L2 9l7.4-.1z" fill="currentColor"/></svg><span id="missionScoreValue">0</span></span>
+      </div>
+    </div>
+
+    <div id="hud-goal" class="hud-panel hud-goal-box hidden">
+      <div class="hud-goal-section-title">CEL MISJI</div>
+      <div id="missionGoalItems" class="mission-goal-items"></div>
+    </div>
+
+    <div id="nelaToast" class="nela-toast hidden" role="status"><span class="nela-avatar" aria-hidden="true"></span><span class="nela-bubble-body"><span class="nela-name">NELA</span><span class="nela-line" id="nelaToastText"></span></span></div>
+
+    <div id="nowPlaying" class="now-playing hidden" role="status"><svg class="np-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.6" fill="currentColor"/><circle cx="17.5" cy="16" r="2.6" fill="currentColor"/></svg><span class="np-label">TERAZ GRA</span><span id="nowPlayingName" class="np-name"></span></div>
+
+    <!-- v22: the in-round hint line -- first-round coaching only for a player
+         who hesitates (Game.updateArenaCoach()), plus the Rush Hour note. -->
+    <div id="mobile-hint" class="hud-panel-bottom hidden" role="status"></div>
+
+    <div id="overdriveBanner" class="overdrive-banner hidden">WIELKI FINISZ</div>
+
+    <div id="evolutionOverlay" class="evolution-overlay hidden">
+      <div class="evolution-panel">
+        <div class="evolution-kicker">EWOLUCJA</div>
+        <div class="evolution-title">Wybierz 1 ulepszenie</div>
+        <div id="evolutionSub" class="evolution-sub">Działa do końca tej rundy. Gra czeka, aż wybierzesz.</div>
+        <div id="evolutionCards" class="evolution-cards"></div>
+        <div class="evolution-timer" aria-hidden="true"><div id="evolutionTimerBar" class="evolution-timer-bar"></div></div>
+        <button id="btnEvolutionSkip" class="btn btn-secondary evolution-skip">POMIŃ</button>
+      </div>
+    </div>
+
+    <div id="thumbpadBase" class="thumbpad-base hidden">
+      <div id="thumbpadKnob" class="thumbpad-knob"></div>
+    </div>
+  </div>
+
+  <!-- ===================== PAUSE SHEET ===================== -->
+  <div id="pauseSheet" class="screen overlay-screen hidden">
+    <div class="screen-inner pause-panel">
+      <h2 class="section-title">PAUZA</h2>
+      <div class="pause-divider"></div>
+
+      <button id="btnResume" class="btn btn-primary pause-btn">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        WRÓĆ DO GRY
+      </button>
+      <button id="btnRestart" class="btn btn-secondary pause-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 1 2.6 6.36"/><path d="M3 21v-6h6"/></svg>
+        <span id="btnRestartLabel">ZACZNIJ OD NOWA</span>
+      </button>
+      <button id="btnControls" class="btn btn-secondary pause-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="12" rx="4"/><circle cx="8" cy="13" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1.3" fill="currentColor" stroke="none"/></svg>
+        STEROWANIE
+      </button>
+      <button id="btnQuickEquip" class="btn btn-secondary pause-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/></svg>
+        ZMIEŃ WYGLĄD
+      </button>
+      <div id="pauseTrack" class="pause-track">
+        <svg class="np-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.6" fill="currentColor"/><circle cx="17.5" cy="16" r="2.6" fill="currentColor"/></svg>
+        <span class="pause-track-text"><span class="pause-track-label">TERAZ GRA</span><span id="pauseTrackName" class="pause-track-name">—</span></span>
+        <button id="btnNextTrack" class="toggle-btn pause-track-next" aria-label="Następny utwór">NASTĘPNY</button>
+      </div>
+
+      <div id="controlsPanel" class="controls-panel hidden">
+        <div class="control-row">
+          <span class="control-label">Tryb sterowania</span>
+          <div class="control-toggle">
+            <button id="btnInputThumbpad" class="toggle-btn">Kciuk (pad)</button>
+            <button id="btnInputLegacy" class="toggle-btn">Przeciąganie</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Czułość</span>
+          <div class="control-toggle">
+            <button class="toggle-btn" data-sensitivity="0.75">Niska</button>
+            <button class="toggle-btn" data-sensitivity="1">Normalna</button>
+            <button class="toggle-btn" data-sensitivity="1.3">Wysoka</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Haptyka</span>
+          <div class="control-toggle">
+            <button id="btnHapticsOn" class="toggle-btn">Wł.</button>
+            <button id="btnHapticsOff" class="toggle-btn">Wył.</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Dźwięki</span>
+          <div class="control-toggle">
+            <button class="toggle-btn" data-setting="sfx" data-value="1">Wł.</button>
+            <button class="toggle-btn" data-setting="sfx" data-value="0">Wył.</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Muzyka</span>
+          <div class="control-toggle">
+            <button class="toggle-btn" data-setting="music" data-value="1">Wł.</button>
+            <button class="toggle-btn" data-setting="music" data-value="0">Wył.</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="btnLeaveRun" class="btn btn-danger pause-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7"/><line x1="9" y1="12" x2="20" y2="12"/><path d="m16 8 4 4-4 4"/></svg>
+        WYJDŹ DO MIASTA
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== QUICK EQUIP POPUP (v5: design/screens/wybor_narzedzia.svg) =====================
+       Opened from Pauza -- lets the player cycle to another OWNED cosmetic
+       per category without leaving the run for the full Warsztat screen. -->
+  <div id="quickEquipScreen" class="screen overlay-screen hidden">
+    <div class="screen-inner tool-popup-panel">
+      <h2 class="section-title">ZMIEŃ WYGLĄD</h2>
+      <p class="hint-text tool-popup-sub">Rozgrywka zatrzymana</p>
+
+      <button id="quickEquipAura" class="tool-card" data-category="aura">
+        <span class="tool-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/></svg></span>
+        <span class="tool-card-body">
+          <span class="tool-card-name">—</span>
+          <span class="tool-card-desc">Smuga — ślad za wirem</span>
+        </span>
+        <span class="tool-card-radio"></span>
+      </button>
+
+      <button id="quickEquipEffect" class="tool-card" data-category="effect">
+        <span class="tool-card-icon"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+        <span class="tool-card-body">
+          <span class="tool-card-name">—</span>
+          <span class="tool-card-desc">Efekt pochłaniania</span>
+        </span>
+        <span class="tool-card-radio"></span>
+      </button>
+
+      <button id="quickEquipOverdrive" class="tool-card" data-category="overdriveSkin">
+        <span class="tool-card-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/></svg></span>
+        <span class="tool-card-body">
+          <span class="tool-card-name">—</span>
+          <span class="tool-card-desc">Finisz — kolor wielkiego finału</span>
+        </span>
+        <span class="tool-card-radio"></span>
+      </button>
+
+      <div class="tool-popup-cta-row">
+        <button id="btnQuickEquipApply" class="btn btn-primary">WYBIERZ</button>
+        <button id="btnQuickEquipClose" class="btn btn-secondary">ZAMKNIJ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== LEAVE RUN CONFIRM ===================== -->
+  <div id="leaveConfirm" class="screen overlay-screen hidden">
+    <div class="screen-inner pause-panel">
+      <h2 class="section-title">OPUŚCIĆ RUNDĘ?</h2>
+      <p class="hint-text">Wrócisz do menu głównego. Monety za dotychczasowy wynik zostaną zapisane.</p>
+      <button id="btnLeaveConfirmYes" class="btn btn-danger">TAK, OPUŚĆ</button>
+      <button id="btnLeaveConfirmNo" class="btn btn-secondary">ANULUJ</button>
+    </div>
+  </div>
+
+  <!-- ===================== MIASTO / CORE CITY (main hub, GDD 4.0 §5.1) ===================== -->
+  <div id="mainMenu" class="screen">
+    <div class="screen-inner hub-inner nav-screen">
+      <!-- v14: one compact header -- who you are (player level, tap = what
+           it gives) + wallet + settings. The old "MIASTO / CORE CITY" title,
+           the separate XP card and the eyebrow labels repeated what the nav
+           tab and the city card already say. -->
+      <div class="app-header hub-header">
+        <button id="hubPlayerLevel" class="hub-player-chip hub-full-only" aria-label="Poziom gracza — co to jest?">
+          <span class="hub-player-ring" id="hubPlayerRing" style="--xp:0">
+            <span id="hubPlayerLevelValue">1</span>
+          </span>
+          <span class="hub-player-text">
+            <span class="hub-player-name" id="hubPlayerName">Gość</span>
+            <span class="hub-player-sub" id="hubPlayerXpText">POZIOM 1 · 0 / 120 XP</span>
+          </span>
+        </button>
+        <div class="hub-header-right">
+          <div class="currency-row">
+            <div class="coin-display">
+              <span class="coin-icon">◇</span>
+              <span id="coinCountMenu">0</span>
+            </div>
+            <div class="coin-display prism-display">
+              <span class="coin-icon">◆</span>
+              <span id="prismCountMenu">0</span>
+            </div>
+          </div>
+          <button id="btnProfile" class="hub-gear-btn" aria-label="Ustawienia i profil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- First-run attract screen (shown instead of everything marked
+           .hub-full-only until the first finished play). v14: logo, the live
+           demo of the game and ONE button. v22: GRAJ starts an Arena round
+           right away -- no tutorial; the round itself coaches a player who
+           hesitates (Game.updateArenaCoach()). -->
+      <div id="hubWelcome" class="hub-welcome hidden">
+        <div class="welcome-stage">
+          <canvas id="hubWelcomeScene" class="welcome-scene" aria-hidden="true"></canvas>
+          <div class="welcome-logo">
+            <span class="welcome-logo-top">VECTOR</span>
+            <span class="welcome-logo-main">HOLE</span>
+            <span class="welcome-logo-sub">POCHŁOŃ NEONOWE MIASTO</span>
+          </div>
+        </div>
+        <button id="btnWelcomePlay" class="btn btn-primary btn-mega welcome-cta">
+          GRAJ
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7V5z"/></svg>
+        </button>
+        <p id="welcomeChallengeNote" class="welcome-challenge-note hidden"></p>
+        <p class="welcome-note">Runda na Arenie · 2:00</p>
+      </div>
+
+      <!-- Golden Shot v11: a friend's challenge link ("Pobij mój wynik!"). -->
+      <div id="hubChallenge" class="hub-challenge hidden">
+        <span class="hub-challenge-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></span>
+        <span class="hub-challenge-text"><span>WYZWANIE OD <strong id="hubChallengeFrom" translate="no">—</strong> · TA SAMA MAPA</span><strong class="hub-challenge-score">Pobij <span id="hubChallengeScore">0</span> pkt</strong></span>
+        <button id="btnAcceptChallenge" class="btn btn-gold btn-small">PRZYJMIJ</button>
+        <button id="btnDismissChallenge" class="hub-challenge-x" aria-label="Odrzuć wyzwanie">×</button>
+      </div>
+
+      <!-- Core City as an actual city: drawCityScene() builds it up building
+           by building as it charges. v14: level, progress and the next
+           reward live INSIDE the card (one glance); tap = the full road of
+           rewards (openCoreCityRoadmap()). -->
+      <div class="hub-city hub-full-only" id="hubHeroStage" role="button" tabindex="0" aria-label="Core City — poziomy i nagrody">
+        <canvas id="hubCityCanvas" class="hub-city-canvas"></canvas>
+        <div class="hub-city-badge"><span class="hub-city-sub">CORE CITY</span><span id="hubLevelLabel" class="hub-city-lvl">LVL 1</span></div>
+        <!-- v17.1: the hook in words, in the sky above the skyline. -->
+        <div class="hub-city-pitch"><strong>Każda runda Areny buduje Twoje miasto</strong><span id="hubCityPitchSub">Nowa nagroda za kilka rund</span></div>
+        <div class="hub-city-foot">
+          <div class="hub-city-next">
+            <span id="hubRewardChip1Icon" class="hub-city-next-icon" aria-hidden="true"></span>
+            <span class="hub-city-next-text"><span class="hub-city-next-prefix">Następna nagroda: </span><strong id="hubRewardChip1">—</strong></span>
+            <span id="hubChargeValue" class="hub-city-pct">0%</span>
+          </div>
+          <div class="hub-city-progress"><div id="hubCityBar" class="hub-city-progress-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- v14: GRAJ sits in the page flow right under the city it builds --
+           no more sticky plate floating over the content. -->
+      <button id="btnStart" class="btn btn-primary btn-mega hub-play hub-full-only">
+        <span class="hub-play-main">GRAJ<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7V5z"/></svg></span>
+        <span id="hubPlaySub" class="hub-play-sub">Arena · runda 2:00 · monety i odbudowa Core City</span>
+      </button>
+
+      <div class="hub-quick-row hub-full-only">
+        <!-- Campaign shortcut: the next mission to do, one tap to its briefing. -->
+        <button id="hubCampaignTile" class="hub-quick-tile hub-quick-campaign">
+          <span class="hub-quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg></span>
+          <span class="hub-quick-text">
+            <span class="hub-quick-eyebrow" id="hubCampaignEyebrow">NASTĘPNA MISJA</span>
+            <strong id="hubCampaignTitle">—</strong>
+            <span class="hub-quick-sub" id="hubCampaignSub">—</span>
+          </span>
+        </button>
+        <button id="btnDaily" class="hub-quick-tile hub-quick-daily">
+          <span class="hub-quick-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg></span>
+          <span class="hub-quick-text">
+            <span class="hub-quick-eyebrow">WYZWANIE DNIA</span>
+            <strong id="hubDailyTitle">Ta sama mapa dla wszystkich</strong>
+            <span class="hub-quick-sub" id="hubDailySub">—</span>
+          </span>
+        </button>
+      </div>
+
+      <!-- Golden Shot v8: free chest on a 4 h cooldown (an appointment to come back). -->
+      <button id="hubFreeChest" class="hub-chest-row hub-full-only">
+        <span class="hub-chest-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h18v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" fill="currentColor" fill-opacity="0.18"/><path d="M3 11V8a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v3"/><path d="M8 4v7M16 4v7"/><rect x="10" y="9.5" width="4" height="5" rx="1" fill="currentColor"/></svg></span>
+        <span class="hub-chest-text"><span id="hubChestTitle">DARMOWA SKRZYNIA</span><strong id="hubChestSub">Gotowa do otwarcia!</strong></span>
+        <span id="hubChestCta" class="hub-chest-cta">OTWÓRZ</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== DAILY LOGIN CALENDAR (Golden Shot v8) =====================
+       7-day escalating login rewards; missing a day restarts the week.
+       Shown once per UTC day on Miasto (Game.maybeShowLoginReward()). -->
+  <div id="loginRewardScreen" class="screen overlay-screen hidden">
+    <div class="screen-inner pause-panel login-panel" role="dialog" aria-modal="true" aria-labelledby="loginRewardTitle">
+      <div class="login-kicker">CODZIENNA NAGRODA</div>
+      <h2 id="loginRewardTitle" class="section-title">Dzień <span id="loginRewardDay">1</span> z 7</h2>
+      <p class="hint-text">Wracaj codziennie — nagrody rosną. Dzień 7 to wielka paczka!</p>
+      <div id="loginRewardGrid" class="login-grid"></div>
+      <div id="loginBurst" class="login-burst" aria-hidden="true"></div>
+      <button id="btnLoginClaim" class="btn btn-primary btn-mega">ODBIERZ</button>
+      <button id="btnLoginDouble" class="btn btn-gold hidden">×2 ZA REKLAMĘ</button>
+      <button id="btnLoginClose" class="btn btn-link hidden">Nie, dziękuję</button>
+    </div>
+  </div>
+
+  <!-- ===================== INFO SHEET =====================
+       One generic "what is this?" popup (Game.openInfoSheet()) behind every
+       hub element that looks tappable but used to do nothing: currencies,
+       Core City reward chips/levels, locked nav tabs, locked districts. -->
+  <div id="infoSheet" class="screen overlay-screen info-sheet hidden">
+    <div class="screen-inner pause-panel info-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="infoSheetTitle">
+      <span id="infoSheetIcon" class="info-sheet-icon"></span>
+      <h2 id="infoSheetTitle" class="section-title">—</h2>
+      <div id="infoSheetBody" class="info-sheet-body"></div>
+      <button id="btnInfoSheetAction" class="btn btn-primary hidden">—</button>
+      <button id="btnInfoSheetClose" class="btn btn-secondary">ROZUMIEM</button>
+    </div>
+  </div>
+
+  <!-- ===================== PROFILE PANEL ===================== -->
+  <div id="profileScreen" class="screen hidden">
+    <div class="screen-inner">
+      <h2 class="section-title">PROFIL</h2>
+      <p class="hint-text">Nazwa jest opcjonalna — możesz grać jako Gość.</p>
+      <input id="displayNameInput" class="text-input" type="text" maxlength="16" placeholder="Twoja nazwa (opcjonalnie)">
+      <button id="btnSaveProfile" class="btn btn-primary">ZAPISZ</button>
+      <div class="hint-text">ID gościa: <span id="guestIdLabel"></span></div>
+      <p id="profileStats" class="hint-text profile-stats"></p>
+
+      <div class="settings-block">
+        <div class="settings-title">USTAWIENIA</div>
+        <div class="control-row">
+          <span class="control-label">Język</span>
+          <div class="control-toggle" translate="no">
+            <button class="toggle-btn" data-lang="pl">Polski</button>
+            <button class="toggle-btn" data-lang="en">English</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Dźwięki</span>
+          <div class="control-toggle">
+            <button class="toggle-btn" data-setting="sfx" data-value="1">Wł.</button>
+            <button class="toggle-btn" data-setting="sfx" data-value="0">Wył.</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Muzyka</span>
+          <div class="control-toggle">
+            <button class="toggle-btn" data-setting="music" data-value="1">Wł.</button>
+            <button class="toggle-btn" data-setting="music" data-value="0">Wył.</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Szafa grająca</span>
+          <div class="control-toggle">
+            <button id="btnJukebox" class="toggle-btn jukebox-btn">MIESZANKA</button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Test dźwięku</span>
+          <div class="control-toggle">
+            <button id="btnSoundTest" class="toggle-btn">ZAGRAJ</button>
+          </div>
+        </div>
+        <p id="soundStatus" class="hint-text sound-status">—</p>
+        <div class="control-row">
+          <span class="control-label">Wibracje</span>
+          <div class="control-toggle">
+            <button class="toggle-btn" data-setting="haptics" data-value="1">Wł.</button>
+            <button class="toggle-btn" data-setting="haptics" data-value="0">Wył.</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- v19: progress lives in this browser only (no accounts) -- a backup
+           code carries it to another device or back after cleared data. -->
+      <div class="settings-block">
+        <div class="settings-title">KOPIA ZAPASOWA</div>
+        <p class="hint-text backup-hint">Postęp zapisuje się w tej przeglądarce. Kod kopii przeniesie go na inny telefon albo przywróci po wyczyszczeniu danych.</p>
+        <div class="control-row">
+          <span class="control-label">Kod postępu</span>
+          <div class="control-toggle">
+            <button id="btnBackupCopy" class="toggle-btn">SKOPIUJ</button>
+            <button id="btnBackupLoad" class="toggle-btn">WCZYTAJ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <div class="settings-title">PRYWATNOŚĆ</div>
+        <div class="control-row">
+          <span class="control-label">Anonimowe statystyki</span>
+          <div class="control-toggle">
+            <button class="toggle-btn" data-consent="1">Zgoda</button>
+            <button class="toggle-btn" data-consent="0">Nie</button>
+          </div>
+        </div>
+        <div class="settings-links">
+          <button id="btnPrivacyPolicy" class="btn btn-link">Polityka prywatności</button>
+          <button id="btnExportData" class="btn btn-link">Pobierz moje dane</button>
+        </div>
+      </div>
+
+      <button id="btnProfileBack" class="btn btn-secondary">POWRÓT</button>
+      <div class="profile-danger-zone">
+        <button id="btnResetProfile" class="btn btn-danger">RESETUJ PROFIL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RESET PROFILE CONFIRM ===================== -->
+  <div id="resetProfileConfirm" class="screen overlay-screen hidden">
+    <div class="screen-inner pause-panel">
+      <h2 class="section-title">ZRESETOWAĆ PROFIL?</h2>
+      <p class="hint-text">Tej operacji nie można cofnąć. Stracisz bezpowrotnie: cały postęp kampanii i odblokowane dzielnice, poziom Core City, monety i pryzmaty, kupione kosmetyki, statystyki i rekordy Areny.</p>
+      <button id="btnResetProfileYes" class="btn btn-danger">TAK, RESETUJ</button>
+      <button id="btnResetProfileNo" class="btn btn-secondary">ANULUJ</button>
+    </div>
+  </div>
+
+  <!-- ===================== CONSENT BAR (Golden Shot v11) =====================
+       Non-blocking: the game is fully playable without answering. Local
+       save = strictly necessary (no consent needed); statistics = opt-in. -->
+  <div id="consentBar" class="consent-bar hidden" role="region" aria-label="Prywatność">
+    <p>Postęp zapisujemy tylko na tym urządzeniu. Czy pozwolisz na <strong>anonimowe statystyki</strong>, które pomagają ulepszać grę?</p>
+    <div class="consent-actions">
+      <button id="btnConsentYes" class="btn btn-primary btn-small">ZGODA</button>
+      <button id="btnConsentNo" class="btn btn-secondary btn-small">NIE</button>
+      <button id="btnConsentPolicy" class="btn btn-link btn-small">Szczegóły</button>
+    </div>
+  </div>
+
+  <!-- ===================== MISSION REVIVE (Golden Shot v11) =====================
+       Out of time while close to the goal: one opt-in rewarded ad for extra
+       seconds, auto-declines after CONFIG.ads.reviveOfferSeconds. -->
+  <div id="reviveOverlay" class="screen overlay-screen hidden">
+    <div class="screen-inner pause-panel revive-panel" role="dialog" aria-modal="true" aria-labelledby="reviveTitle">
+      <div class="login-kicker">CZAS MINĄŁ</div>
+      <h2 id="reviveTitle" class="section-title">PRAWIE!</h2>
+      <div class="revive-progress"><div id="reviveProgressBar" class="revive-progress-fill"></div><span id="reviveProgressPct">0%</span></div>
+      <p id="reviveMissing" class="hint-text">—</p>
+      <button id="btnReviveAd" class="btn btn-gold btn-mega">+20 S · OBEJRZYJ REKLAMĘ</button>
+      <button id="btnRevivePrisms" class="btn btn-secondary">+20 S · 8 ◆</button>
+      <div class="revive-timer"><div id="reviveTimerBar" class="revive-timer-bar"></div></div>
+      <button id="btnReviveNo" class="btn btn-link">Nie, zakończ misję</button>
+    </div>
+  </div>
+
+  <!-- ===================== MISSION START CARD (v15) =====================
+       Every mission waits on a tap: NELA's line, the goals, twists and the
+       boosters in play. The clock starts on the tap (owner feedback). -->
+  <div id="missionStartOverlay" class="screen overlay-screen start-overlay hidden" role="dialog" aria-modal="true" aria-label="Start misji">
+    <div id="missionStartCard" class="mission-card start-card"></div>
+  </div>
+
+
+  <!-- ===================== DZIELNICE — kampania i misje (Vector Hole v4 / GDD 4.0 §5.2) =====================
+       Anti-confusion rule (§8.4): this screen shows per-district rebuild
+       progress ("ODBUDOWA: X% · Y z Z misji"), never the big Core City %. -->
+  <div id="campaignScreen" class="screen hidden">
+    <div class="screen-inner nav-screen">
+      <div class="app-header">
+        <div>
+          <h1 class="app-title">DZIELNICE</h1>
+        </div>
+        <div class="hub-header-right">
+          <div class="currency-row">
+            <div class="coin-display"><span class="coin-icon">◇</span><span id="coinCountDistricts">0</span></div>
+            <div class="coin-display prism-display"><span class="coin-icon">◆</span><span id="prismCountDistricts">0</span></div>
+          </div>
+          <button class="hub-gear-btn" aria-label="Ustawienia i profil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- v14: districts as a compact horizontal strip (was a 2x3 grid of
+           tall tiles that pushed the missions -- and the old play button at
+           the very bottom -- below the fold). -->
+      <!-- v21: .wide-col wrappers are display: contents on a phone (no
+           effect) and the two columns of the landscape layout on a big
+           screen (body.wide). Phone order is kept with CSS order. -->
+      <div class="wide-col wide-col-a">
+      <div id="districtMap" class="district-strip"></div>
+
+      <div class="district-head">
+        <h2 class="district-name" id="districtTitle">—</h2>
+        <span class="district-rebuild-line" id="districtRebuildLine">—</span>
+      </div>
+      <div class="district-head-bar"><span id="districtRebuildBar"></span></div>
+      <!-- The district's story, told by NELA (v14: the story lines were grey
+           italics nobody noticed). On a phone it shows under the next
+           mission (CSS order). -->
+      <div class="nela-bubble district-story" id="districtStory">
+        <span class="nela-avatar" aria-hidden="true"></span>
+        <span class="nela-bubble-body"><span class="nela-name">NELA</span><span class="nela-line" id="districtStoryText">—</span></span>
+      </div>
+      </div>
+      <div class="wide-col wide-col-b">
+      <!-- The mission to do next, briefed in place with its own GRAJ: no
+           scrolling to the bottom of the list to start a level. -->
+      <div id="missionNextCard" class="mission-card mission-card-next"></div>
+
+
+      <div class="mission-list-head"><span>WSZYSTKIE MISJE</span><span id="missionMedalsFootnote">—</span></div>
+      <div id="missionList" class="mission-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MISSION BRIEFING (v14) =====================
+       Tapping any mission opens its briefing: NELA's line, the goals as
+       big icon rows, time limit, medal, reward -- and GRAJ right there. -->
+  <div id="missionBriefing" class="screen overlay-screen briefing-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="briefingName">
+    <div class="screen-inner briefing-sheet">
+      <button id="btnBriefingClose" class="briefing-close" aria-label="Zamknij">×</button>
+      <div id="briefingCard" class="mission-card"></div>
+    </div>
+  </div>
+
+  <!-- ===================== MISSION RESULT (Vector Hole v3) ===================== -->
+  <div id="missionResultScreen" class="screen hidden">
+    <div class="confetti-layer" id="missionConfetti" aria-hidden="true"></div>
+    <div class="screen-inner result-anim mission-result-inner">
+<div class="wide-col wide-col-a">
+      <div id="missionHero" class="mission-hero" aria-hidden="true"><svg viewBox="0 0 64 64"><circle class="mh-ring" cx="32" cy="32" r="27"/><path class="mh-check" d="M19 33l9 9 17-19"/><path class="mh-clock" d="M32 18v15l9 6"/></svg></div>
+      <div class="result-eyebrow" id="missionResultEyebrow">—</div>
+      <h2 class="section-title" id="missionResultTitle">MISJA UKOŃCZONA</h2>
+
+      <div class="mission-result-stats">
+        <div class="mr-stat" id="missionResultScoreTile"><span class="mr-stat-label">WYNIK</span><span class="mr-stat-value" id="missionResultScore">0</span></div>
+        <div class="mr-stat"><span class="mr-stat-label" id="missionResultTimeLabel">CZAS</span><span class="mr-stat-value" id="missionResultTime">0:00</span></div>
+      </div>
+      <!-- v15: three stars per mission (clear / fast / expert or special). -->
+      <div class="mr-stars" id="missionResultStars" aria-label="Gwiazdki"></div>
+      <ul class="mission-result-medal" id="missionResultMedal"></ul>
+
+      <div class="nela-bubble" id="missionResultNelaBubble">
+        <span class="nela-avatar" aria-hidden="true"></span>
+        <span class="nela-bubble-body"><span class="nela-name">NELA</span><span class="nela-line" id="missionResultNela">—</span></span>
+      </div>
+
+      <p class="mission-result-reward" id="missionResultReward">—</p>
+      <div class="result-card result-xp-card" id="missionXpCard">
+        <div class="result-xp-head">
+          <span class="result-xp-level" id="missionXpLevel">POZIOM 1</span>
+          <span class="result-xp-gain" id="missionXpGain">+0 XP</span>
+        </div>
+        <div class="result-xp-track"><div class="result-xp-bar" id="missionXpBar"></div></div>
+        <span class="result-xp-text" id="missionXpText">0 / 120 XP</span>
+      </div>
+
+      <!-- v14: where the next button leads -- the next mission's briefing
+           (goals, time, reward) right above it. -->
+      </div>
+      <div class="wide-col wide-col-b">
+      <div id="missionResultNextCard" class="mission-card mission-card-mini hidden"></div>
+
+      <div class="mission-result-actions">
+        <button id="btnMissionNext" class="btn btn-primary btn-mega">DALEJ</button>
+        <div class="mission-result-row">
+          <button id="btnMissionRetry" class="btn btn-secondary">POWTÓRZ</button>
+          <button id="btnMissionMap" class="btn btn-secondary">DZIELNICE</button>
+          <button id="btnMissionMenu" class="btn btn-secondary">MIASTO</button>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SHOP SCREEN (Workshop v2) ===================== -->
+  <div id="shopScreen" class="screen hidden">
+    <div class="screen-inner nav-screen">
+      <div class="app-header">
+        <div>
+          <h1 class="app-title">WARSZTAT</h1>
+        </div>
+        <div class="hub-header-right">
+          <div class="currency-row">
+            <div class="coin-display"><span class="coin-icon">◇</span><span id="coinCountShop">0</span></div>
+            <div class="coin-display prism-display"><span class="coin-icon">◆</span><span id="prismCountShop">0</span></div>
+          </div>
+          <button class="hub-gear-btn" aria-label="Ustawienia i profil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- "PODGLĄD NA ŻYWO" (GDD 4.0 §5.3) — drawn by the in-round Hole.draw()
+           itself (Game.renderWarsztatCanvases()), so it's identical to the hole
+           on the board: same ring, vortex, trail and eat effect. -->
+      <div class="wide-col wide-col-a">
+      <div class="warsztat-preview">
+        <div class="warsztat-preview-top">
+          <div class="warsztat-preview-stage">
+            <div class="warsztat-preview-glow"></div>
+            <canvas id="warsztatPreviewCanvas" class="warsztat-preview-canvas"></canvas>
+          </div>
+          <!-- v14: name + look + the rest of the loadout in one line (the
+               "PODGLĄD NA ŻYWO" caption and the 2x2 "AKTYWNE ELEMENTY"
+               tiles repeated what the tabs and the grid already show). -->
+          <div class="warsztat-preview-labels">
+            <div class="warsztat-preview-name" id="warsztatPreviewName">—</div>
+            <div class="warsztat-look" id="warsztatLook">
+              <span class="warsztat-look-label">WYGLĄD WIRU · BEZ BONUSU W RUNDZIE</span>
+              <strong id="warsztatLookValue">—</strong>
+            </div>
+            <div class="warsztat-preview-loadout" id="warsztatPreviewLoadout">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="shop-tabs">
+        <button id="tabSkins" class="toggle-btn active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7"/></svg>
+          WIR
+        </button>
+        <button id="tabAuras" class="toggle-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/></svg>
+          SMUGA
+        </button>
+        <button id="tabEffects" class="toggle-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          EFEKT
+        </button>
+        <button id="tabOverdrive" class="toggle-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/></svg>
+          FINISZ
+        </button>
+      </div>
+
+      <p class="hint-text warsztat-hint">Dotknij, żeby założyć. Zablokowane obejrzysz na podglądzie.</p>
+      </div>
+      <div class="wide-col wide-col-b">
+      <div class="skin-grid-header">
+        <span class="skin-grid-header-title">ZESTAWY I KOSMETYKI</span>
+        <span id="cosmeticUnlockedCount" class="skin-grid-header-count">0 / 0 ODBLOKOWANE</span>
+      </div>
+
+      <div id="skinGrid" class="skin-grid"></div>
+      <div id="auraGrid" class="skin-grid hidden"></div>
+      <div id="effectGrid" class="skin-grid hidden"></div>
+      <div id="overdriveSkinGrid" class="skin-grid hidden"></div>
+
+      <!-- Golden Shot v11 store: rewarded prisms always; paid packs only
+           when a real payment provider is attached (Monetization). -->
+      <div class="store-card">
+        <div class="store-free">
+          <span class="store-free-icon" aria-hidden="true">◆</span>
+          <span class="store-free-body"><strong>DARMOWE PRYZMATY</strong><span id="freePrismsLeft">Zostało dziś: 3</span></span>
+          <button id="btnFreePrisms" class="btn btn-gold btn-small">+5 ◆ · REKLAMA</button>
+        </div>
+        <div id="storePaid" class="store-paid hidden">
+          <div class="store-paid-title">SKLEP</div>
+          <div id="storeProducts" class="store-products"></div>
+        </div>
+      </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================== WYZWANIA (GDD 4.0 §5.4) =====================
+       Daily rotating mission + Daily Seed Challenge, both with a UTC
+       countdown to the next reset. MVP scope per §5.4: no live-ops events
+       screen yet, just Daily + countdown. -->
+  <div id="challengesScreen" class="screen hidden">
+    <div class="screen-inner nav-screen">
+      <div class="app-header">
+        <div>
+          <h1 class="app-title">WYZWANIA</h1>
+        </div>
+        <div class="hub-header-right">
+          <div class="currency-row">
+            <div class="coin-display"><span class="coin-icon">◇</span><span id="coinCountChallenges">0</span></div>
+            <div class="coin-display prism-display"><span class="coin-icon">◆</span><span id="prismCountChallenges">0</span></div>
+          </div>
+          <button class="hub-gear-btn" aria-label="Ustawienia i profil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- v5: design/screens/wyzwania.svg -- Daily Seed Challenge gets the
+           big hero treatment (icon, countdown, reward track); the rotating
+           daily mission + streak stay as a secondary card below it. -->
+      <div class="wide-col wide-col-a">
+      <div class="daily-hero-card">
+        <div class="daily-hero-head">
+          <div class="daily-hero-headings">
+            <div class="daily-hero-kicker">WYZWANIE DNIA</div>
+            <div id="dailyDateLabel" class="daily-hero-date">—</div>
+          </div>
+          <div class="daily-countdown-ring" title="Do resetu">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <circle class="daily-ring-track" cx="32" cy="32" r="28"/>
+              <circle id="challengeCountdownRing" class="daily-ring-fill" cx="32" cy="32" r="28"/>
+            </svg>
+            <div class="daily-countdown-text">
+              <span class="daily-countdown-value" id="challengeCountdown">--:--:--</span>
+              <span class="daily-countdown-label">DO RESETU</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's real layout (Game.computeDailyLayout() replays the
+             seeded spawn), so "the same map for everyone" is something you
+             can see, not just read. -->
+        <div class="daily-map-wrap">
+          <canvas id="dailyMapCanvas" class="daily-map-canvas"></canvas>
+          <span class="daily-map-label">MAPA DNIA · ta sama dla wszystkich</span>
+          <span id="dailyModifierBadge" class="daily-modifier hidden">GODZINA SZCZYTU · rywale szybsi</span>
+          <span class="daily-map-you">◉ start</span>
+        </div>
+
+        <p id="dailyGoalText" class="daily-hero-sub">—</p>
+
+        <div class="daily-reward-track">
+          <div class="daily-reward-box">
+            <span class="daily-reward-label">PIERWSZE UKOŃCZENIE</span>
+            <span class="daily-reward-value" id="dailyRewardFirst">—</span>
+          </div>
+          <div class="daily-reward-box daily-reward-box-gold">
+            <span class="daily-reward-label">NOWY REKORD DNIA</span>
+            <span class="daily-reward-value daily-reward-gold" id="dailyRewardBest">—</span>
+          </div>
+        </div>
+      </div>
+
+      </div>
+      <div class="wide-col wide-col-b">
+      <button id="btnPlayDaily" class="btn btn-primary">
+        ZAGRAJ WYZWANIE
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7V5z"/></svg>
+      </button>
+
+      <div class="streak-card">
+        <div class="streak-head">
+          <span class="streak-flame"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5 .2 2 1 3 2 3.5C11 8.5 11 5 12 2z"/></svg></span>
+          <span class="streak-title">SERIA: <strong id="dailyStreakValue">0</strong> dni z rzędu</span>
+        </div>
+        <div id="streakDays" class="streak-days"></div>
+        <div class="streak-hint">Zagraj Wyzwanie dnia każdego dnia, żeby nie przerwać serii.</div>
+      </div>
+
+      <div class="hub-card challenge-card">
+        <div class="hub-card-header">
+          <span class="hub-card-label">MISJA DNIA</span>
+          <span id="hubMissionStatus" class="mission-day-status">DO ZROBIENIA</span>
+        </div>
+        <p id="hubMissionText" class="hub-mission-text">—</p>
+        <p class="mission-day-hint">Liczy się w każdej rundzie GRAJ 2:00 i w Wyzwaniu dnia.</p>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== GAME OVER SCREEN (v5: design/screens/wynik_rundy.svg) ===================== -->
+  <div id="gameOverScreen" class="screen hidden">
+    <div class="confetti-layer" id="resultConfetti" aria-hidden="true"></div>
+    <div class="screen-inner result-screen result-anim">
+<div class="wide-col wide-col-a">
+      <div class="result-eyebrow" id="resultEyebrow">KONIEC RUNDY</div>
+      <div id="resultTag" class="result-tag hidden"></div>
+
+      <div class="result-hero">
+        <div class="result-hero-label">WYNIK</div>
+        <div class="result-hero-row">
+          <div class="result-hero-score" id="finalScore">0</div>
+          <div id="resultPbBadge" class="result-pb-badge hidden">NOWY REKORD</div>
+        </div>
+      </div>
+
+      <div class="result-badges">
+        <div class="result-badge">
+          <span class="result-badge-label">ROZMIAR</span>
+          <span class="result-badge-value" id="resultTierLabel">T1 · MAŁY</span>
+        </div>
+        <div class="result-badge">
+          <span class="result-badge-label">MIEJSCE</span>
+          <span class="result-badge-value result-badge-gold" id="finalPlace">#1</span>
+        </div>
+      </div>
+
+      <p id="resultHookLine" class="result-hook hidden"></p>
+      <!-- v14: one "NAGRODY" card (was three separate cards for coins, XP
+           and Core City stacked on top of each other). -->
+      <div class="result-rewards">
+      <div class="result-rewards-title">NAGRODY</div>
+      <div class="result-card result-coins-card">
+        <span class="result-coins-icon">◇</span>
+        <div class="result-coins-body">
+          <span class="result-card-label">ZDOBYTE MONETY</span>
+          <span class="result-coins-value">+<span id="finalCoins">0</span> monet</span>
+        </div>
+        <span id="resultNewbieTag" class="result-newbie-tag hidden">BONUS NOWICJUSZA ×1,5</span>
+      </div>
+      <div class="result-card result-xp-card" id="resultXpCard">
+        <div class="result-xp-head">
+          <span class="result-xp-level" id="resultXpLevel">POZIOM 1</span>
+          <span class="result-xp-gain" id="resultXpGain">+0 XP</span>
+        </div>
+        <div class="result-xp-track"><div class="result-xp-bar" id="resultXpBar"></div></div>
+        <span class="result-xp-text" id="resultXpText">0 / 120 XP</span>
+      </div>
+      <div class="result-card result-core-card">
+        <span class="result-card-label">POSTĘP CORE CITY</span>
+        <div class="result-core-row">
+          <span class="result-core-pct" id="resultCoreBefore">0%</span>
+          <span class="result-core-arrow">→</span>
+          <span class="result-core-pct result-core-pct-after" id="resultCoreAfter">0%</span>
+          <span class="result-core-gain" id="resultCoreGain">+0%</span>
+        </div>
+        <div class="result-core-track">
+          <div id="resultCoreBarBefore" class="result-core-bar-before"></div>
+          <div id="resultCoreBar" class="result-core-bar-after"></div>
+        </div>
+      </div>
+      </div>
+
+      </div>
+      <div class="wide-col wide-col-b">
+      <ol id="finalLeaderboard" class="final-leaderboard"></ol>
+
+      <p id="dailyResultLine" class="hint-text daily-result hidden"></p>
+      <p id="missionResultLine" class="hint-text mission-result hidden"></p>
+      <p id="hubMilestoneLine" class="hint-text hub-milestone-result hidden"></p>
+
+      <!-- v12: the next-action bar sticks to the bottom of the results
+           column, so "play again" / x2 coins / challenge are always on
+           screen instead of below a long scroll. -->
+      <div class="result-actions">
+        <button id="btnPlayAgain" class="btn btn-primary">ZAGRAJ JESZCZE RAZ</button>
+        <div class="result-actions-row">
+          <button id="btnWatchAd" class="btn btn-gold">×2 MONET · REKLAMA</button>
+          <button id="btnShare" class="btn btn-secondary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg> WYZWIJ ZNAJOMEGO</button>
+        </div>
+      </div>
+      <button id="btnMenu" class="btn btn-link">Wróć do Miasta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== FULLSCREEN AD OVERLAY (placeholder) ===================== -->
+  <div id="adOverlay" class="screen hidden">
+    <div class="screen-inner ad-inner">
+      <p id="adKind" class="ad-label">REKLAMA</p>
+      <h2>Tu wyświetli się reklama partnera</h2>
+      <p class="hint-text">Wersja demonstracyjna — na portalu lub w aplikacji w tym miejscu wyświetla się prawdziwa reklama.</p>
+      <div class="ad-progress-track">
+        <div id="adProgressBar" class="ad-progress-bar"></div>
+      </div>
+      <p id="adCountdown" class="ad-countdown">5</p>
+    </div>
+  </div>
+
+  <!-- ===================== UNLOCK CELEBRATION =====================
+       Full-screen "ODBLOKOWANO!" moment for new features (GRAJ 2:00,
+       Warsztat, Wyzwania, districts) and cosmetic rewards -- see
+       Game.queueUnlockCelebrations(). Sequence (style.css): the lock
+       shakes, cracks open, the feature icon pops out with rays + a burst. -->
+  <div id="unlockOverlay" class="unlock-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="unlockTitle">
+    <div class="unlock-panel">
+      <div class="unlock-stage" aria-hidden="true">
+        <div class="unlock-rays"></div>
+        <div class="unlock-ring"></div>
+        <div id="unlockBurst" class="unlock-burst"></div>
+        <span class="unlock-lock">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path class="unlock-shackle" d="M8 11V7a4 4 0 018 0v4"/></svg>
+        </span>
+        <span id="unlockIcon" class="unlock-icon"></span>
+      </div>
+      <div class="unlock-kicker">ODBLOKOWANO!</div>
+      <div id="unlockEyebrow" class="unlock-eyebrow">—</div>
+      <h2 id="unlockTitle" class="unlock-title">—</h2>
+      <p id="unlockDesc" class="unlock-desc">—</p>
+      <div id="unlockCounter" class="unlock-counter hidden"></div>
+      <div class="unlock-actions">
+        <button id="btnUnlockGo" class="btn btn-primary">ZOBACZ</button>
+        <button id="btnUnlockLater" class="btn btn-secondary">DALEJ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== BOTTOM NAV (GDD 4.0 §5.1/§5.2/§5.3/§5.4) =====================
+       One persistent nav shown across the 4 hub screens instead of
+       duplicating markup per screen. Tabs unlock per §5.5 -- see
+       Game.renderBottomNav(). -->
+  <div id="bottomNav" class="bottom-nav hidden">
+    <button id="btnNavMiasto" class="nav-tab" data-nav="mainMenu">
+      <span class="nav-tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+      </span>
+      <span class="nav-tab-label">Miasto</span>
+    </button>
+    <button id="btnNavDzielnice" class="nav-tab" data-nav="campaignScreen">
+      <span class="nav-tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span class="nav-tab-lock hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+        </span>
+      </span>
+      <span class="nav-tab-label">Dzielnice</span>
+    </button>
+    <button id="btnNavWarsztat" class="nav-tab" data-nav="shopScreen">
+      <span class="nav-tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7.5a5.5 5.5 0 01-7.44 5.16L6 20l-2-2 7.34-7.66A5.5 5.5 0 1121 7.5z"/></svg>
+        <span class="nav-tab-lock hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+        </span>
+      </span>
+      <span class="nav-tab-label">Warsztat</span>
+    </button>
+    <button id="btnNavWyzwania" class="nav-tab" data-nav="challengesScreen">
+      <span class="nav-tab-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4z"/><path d="M7 5H4a3 3 0 003 3M17 5h3a3 3 0 01-3 3"/></svg>
+        <span class="nav-tab-lock hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+        </span>
+      </span>
+      <span class="nav-tab-label">Wyzwania</span>
+    </button>
+  </div>
+
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
